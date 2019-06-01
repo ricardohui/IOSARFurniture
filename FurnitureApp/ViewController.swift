@@ -16,7 +16,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     private var hud: MBProgressHUD!
     private var newAngleY: Float = 0.0
     private var currentAngleY: Float = 0.0
-    
+    private var localTranslatePosition: CGPoint!
     override func viewDidLoad() {
         super.viewDidLoad()
         self.sceneView.autoenablesDefaultLighting = true
@@ -44,6 +44,31 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         self.sceneView.addGestureRecognizer(pinchGestureRecognizer)
         let panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(panned))
         self.sceneView.addGestureRecognizer(panGestureRecognizer)
+        let longGestureRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(longPressed))
+        self.sceneView.addGestureRecognizer(longGestureRecognizer)
+    }
+    
+    @objc func longPressed(recognizer: UILongPressGestureRecognizer){
+        guard let sceneView = recognizer.view as? ARSCNView else{
+            return
+        }
+        
+        let touch = recognizer.location(in: sceneView)
+        let  hitTestResults = self.sceneView.hitTest(touch, options: nil)
+        if let hitTest  = hitTestResults.first{
+            if let parentNode = hitTest.node.parent{
+                if recognizer.state == .began{
+                    localTranslatePosition = touch
+                }else if recognizer.state == .changed{
+                    let deltaX = Float(touch.x - self.localTranslatePosition.x) / 700
+                    let deltaY = Float(touch.y - self.localTranslatePosition.y) / 700
+                    
+                    parentNode.localTranslate(by: SCNVector3(deltaX, 0.0, deltaY))
+                    self.localTranslatePosition = touch
+                }
+                
+            }
+        }
     }
     
     @objc func panned(recognizer: UIPanGestureRecognizer){
@@ -59,13 +84,15 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             let hitTestResults = self.sceneView.hitTest(touch, options: nil)
             
             if let hitTest = hitTestResults.first {
-                
-                let chairNode = hitTest.node
-                
-                self.newAngleY = Float(translation.x) * (Float) (Double.pi)/180
-                self.newAngleY += self.currentAngleY
-                chairNode.eulerAngles.y = self.newAngleY
-                
+                if let parentNode = hitTest.node.parent{
+                    
+                 
+                    
+                    self.newAngleY = Float(translation.x) * (Float) (Double.pi)/180
+                    self.newAngleY += self.currentAngleY
+                    parentNode.eulerAngles.y = self.newAngleY
+                    
+                }
                 
             }
             
@@ -104,7 +131,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             
             let chairScene = SCNScene(named: "chair.dae")!
             
-            guard let chairNode = chairScene.rootNode.childNode(withName: "chair", recursively: true) else {
+            guard let chairNode = chairScene.rootNode.childNode(withName: "parentNode", recursively: true) else {
                 return
             }
             
